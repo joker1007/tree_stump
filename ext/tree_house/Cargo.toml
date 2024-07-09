@@ -1,0 +1,14 @@
+[package]
+name = "tree_house"
+version = "0.1.0"
+edition = "2021"
+authors = ["joker1007 <kakyoin.hierophant@gmail.com>"]
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+magnus = { version = "0.6.2" }
+tree-sitter = "~0.22"
+libloading = "~0.8.4"
