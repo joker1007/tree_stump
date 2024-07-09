@@ -1,17 +1,34 @@
-use magnus::{Error, RTypedData, Ruby, Value};
+use magnus::{Error, RFile, RTypedData, Ruby, Value};
 
 use std::cell::RefCell;
+use std::num::NonZero;
 use std::ops::Range;
 
-#[magnus::wrap(class = "TreeHouse::Tree")]
+use crate::data;
+use crate::data::Point;
+use crate::language::LanguageRef;
+use crate::util::build_error;
+
+#[magnus::wrap(class = "TreeHouse::Tree", free_immediately)]
 pub struct Tree {
-    pub raw_tree: tree_sitter::Tree,
+    raw_tree: tree_sitter::Tree,
 }
 
 impl Tree {
+    pub fn from(tree: tree_sitter::Tree) -> Self {
+        Self { raw_tree: tree }
+    }
+
     pub fn root_node(&self) -> Node<'_> {
         Node {
             raw_node: self.raw_tree.root_node(),
+        }
+    }
+
+    pub fn language(&self) -> LanguageRef<'_> {
+        let raw_lang_ref = self.raw_tree.language();
+        LanguageRef {
+            raw_language_ref: raw_lang_ref,
         }
     }
 
@@ -20,9 +37,17 @@ impl Tree {
             raw_cursor: RefCell::new(self.raw_tree.walk()),
         }
     }
+
+    pub fn print_dot_graph(&self, io: RFile) {
+        self.raw_tree.print_dot_graph(&io);
+    }
+
+    pub fn inspect(&self) -> String {
+        format!("{:?}", self.raw_tree)
+    }
 }
 
-#[magnus::wrap(class = "TreeHouse::TreeCursor", unsafe_generics)]
+#[magnus::wrap(class = "TreeHouse::TreeCursor", free_immediately, unsafe_generics)]
 pub struct TreeCursor<'cursor> {
     raw_cursor: RefCell<tree_sitter::TreeCursor<'cursor>>,
 }
@@ -82,12 +107,21 @@ impl<'cursor> TreeCursor<'cursor> {
     }
 }
 
-#[magnus::wrap(class = "TreeHouse::Node", unsafe_generics)]
+#[magnus::wrap(class = "TreeHouse::Node", free_immediately, unsafe_generics)]
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct Node<'tree> {
     raw_node: tree_sitter::Node<'tree>,
 }
 
 impl<'tree> Node<'tree> {
+    pub fn new(raw_node: tree_sitter::Node<'tree>) -> Self {
+        Self { raw_node }
+    }
+
+    pub fn get_raw_node(&self) -> tree_sitter::Node<'tree> {
+        self.raw_node
+    }
+
     pub fn id(&self) -> usize {
         self.raw_node.id()
     }
@@ -104,8 +138,15 @@ impl<'tree> Node<'tree> {
         self.raw_node.grammar_id()
     }
 
-    pub fn grammer_name(&self) -> &'static str {
+    pub fn grammar_name(&self) -> &'static str {
         self.raw_node.grammar_name()
+    }
+
+    pub fn language(&self) -> LanguageRef<'_> {
+        let raw_lang_ref = self.raw_node.language();
+        LanguageRef {
+            raw_language_ref: raw_lang_ref,
+        }
     }
 
     pub fn is_named(&self) -> bool {
@@ -128,6 +169,14 @@ impl<'tree> Node<'tree> {
         self.raw_node.is_error()
     }
 
+    pub fn parse_state(&self) -> u16 {
+        self.raw_node.parse_state()
+    }
+
+    pub fn next_parse_state(&self) -> u16 {
+        self.raw_node.parse_state()
+    }
+
     pub fn start_byte(&self) -> usize {
         self.raw_node.start_byte()
     }
@@ -140,40 +189,240 @@ impl<'tree> Node<'tree> {
         self.raw_node.byte_range()
     }
 
-    pub fn child(&self, index: usize) -> Option<Node> {
+    pub fn range(&self) -> data::Range {
+        self.raw_node.range().into()
+    }
+
+    pub fn start_position(&self) -> Point {
+        self.raw_node.start_position().into()
+    }
+
+    pub fn end_position(&self) -> Point {
+        self.raw_node.end_position().into()
+    }
+
+    pub fn child(&self, index: usize) -> Option<Self> {
         self.raw_node
             .child(index)
-            .map(|node| Node { raw_node: node })
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn child_count(&self) -> usize {
+        self.raw_node.child_count()
+    }
+
+    pub fn named_child(&self, index: usize) -> Option<Self> {
+        self.raw_node
+            .named_child(index)
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn named_child_count(&self) -> usize {
+        self.raw_node.named_child_count()
+    }
+
+    pub fn child_by_field_name(&self, field_name: String) -> Option<Self> {
+        self.raw_node
+            .child_by_field_name(field_name)
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
+        self.raw_node
+            .child_by_field_id(field_id)
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn field_name_for_child(&self, child_index: u32) -> Option<&'static str> {
+        self.raw_node.field_name_for_child(child_index)
+    }
+
+    pub fn children<'cursor>(ruby: &Ruby, rb_self: Value) -> Result<Value, Error> {
+        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
+        let node = typed_data.get::<Self>()?;
+        let mut cursor = node.raw_node.walk();
+        let iter = node.raw_node.children(&mut cursor);
+        for node in iter {
+            let node = Self { raw_node: node };
+            let _: Value = ruby.yield_value(node)?;
+        }
+        Ok(rb_self)
     }
 
     pub fn children_with_cursor<'cursor>(
         ruby: &Ruby,
-        _rb: Value,
+        rb_self: Value,
         cursor: &'cursor TreeCursor<'tree>,
-    ) -> Result<(), Error> {
-        let rb_self = ruby.current_receiver::<Value>().unwrap();
+    ) -> Result<Value, Error> {
         let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let node = typed_data.get::<Node>().expect("Expected Node");
+        let node = typed_data.get::<Self>()?;
         let mut borrowed = cursor.raw_cursor.borrow_mut();
         let iter = node.raw_node.children(&mut borrowed);
-        iter.for_each(|node| {
-            let node = Node { raw_node: node };
-            let _: Value = ruby.yield_value(node).unwrap();
-        });
-        Ok(())
+        for node in iter {
+            let node = Self { raw_node: node };
+            let _: Value = ruby.yield_value(node)?;
+        }
+        Ok(rb_self)
     }
 
-    pub fn parent(&self) -> Option<Node> {
-        self.raw_node.parent().map(|node| Node { raw_node: node })
+    pub fn named_children_with_cursor<'cursor>(
+        ruby: &Ruby,
+        rb_self: Value,
+        cursor: &'cursor TreeCursor<'tree>,
+    ) -> Result<Value, Error> {
+        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
+        let node = typed_data.get::<Self>()?;
+        let mut borrowed = cursor.raw_cursor.borrow_mut();
+        let iter = node.raw_node.named_children(&mut borrowed);
+        for node in iter {
+            let node = Self { raw_node: node };
+            let _: Value = ruby.yield_value(node)?;
+        }
+        Ok(rb_self)
+    }
+
+    pub fn children_by_field_name_with_cursor<'cursor>(
+        ruby: &Ruby,
+        rb_self: Value,
+        field_name: String,
+        cursor: &'cursor TreeCursor<'tree>,
+    ) -> Result<Value, Error> {
+        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
+        let node = typed_data.get::<Self>()?;
+        let mut borrowed = cursor.raw_cursor.borrow_mut();
+        let iter = node
+            .raw_node
+            .children_by_field_name(&field_name, &mut borrowed);
+        for node in iter {
+            let node = Self { raw_node: node };
+            let _: Value = ruby.yield_value(node)?;
+        }
+        Ok(rb_self)
+    }
+
+    pub fn children_by_field_id_with_cursor<'cursor>(
+        ruby: &Ruby,
+        rb_self: Value,
+        field_id: u16,
+        cursor: &'cursor TreeCursor<'tree>,
+    ) -> Result<Value, Error> {
+        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
+        let node = typed_data.get::<Self>()?;
+        let mut borrowed = cursor.raw_cursor.borrow_mut();
+        let non_zero_field_id = match NonZero::new(field_id) {
+            Some(id) => Ok(id),
+            None => Err(build_error("field_id must be non-zero".to_string())),
+        }?;
+        let iter = node
+            .raw_node
+            .children_by_field_id(non_zero_field_id, &mut borrowed);
+        for node in iter {
+            let node = Self { raw_node: node };
+            let _: Value = ruby.yield_value(node)?;
+        }
+        Ok(rb_self)
+    }
+
+    pub fn parent(&self) -> Option<Self> {
+        self.raw_node.parent().map(|node| Self { raw_node: node })
+    }
+
+    pub fn child_containing_descendant(&self, descendant: Value) -> Result<Option<Self>, Error> {
+        let descendant_typed_data =
+            RTypedData::from_value(descendant).expect("Expected typed data");
+        let descendant_node = descendant_typed_data.get::<Self>()?;
+        Ok(self
+            .raw_node
+            .child_containing_descendant(descendant_node.raw_node)
+            .map(|node| Self { raw_node: node }))
+    }
+
+    pub fn next_sibling(&self) -> Option<Self> {
+        self.raw_node
+            .next_sibling()
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn prev_sibling(&self) -> Option<Self> {
+        self.raw_node
+            .prev_sibling()
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn next_named_sibling(&self) -> Option<Self> {
+        self.raw_node
+            .next_named_sibling()
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn prev_named_sibling(&self) -> Option<Self> {
+        self.raw_node
+            .prev_named_sibling()
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn descendant_count(&self) -> usize {
+        self.raw_node.descendant_count()
+    }
+
+    pub fn descendant_for_byte_range(&self, start: usize, end: usize) -> Option<Self> {
+        self.raw_node
+            .descendant_for_byte_range(start, end)
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn named_descendant_for_byte_range(&self, start: usize, end: usize) -> Option<Self> {
+        self.raw_node
+            .named_descendant_for_byte_range(start, end)
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn descendant_for_point_range(
+        &self,
+        start: (usize, usize),
+        end: (usize, usize),
+    ) -> Option<Self> {
+        let start = tree_sitter::Point::new(start.0, start.1);
+        let end = tree_sitter::Point::new(end.0, end.1);
+        self.raw_node
+            .descendant_for_point_range(start, end)
+            .map(|node| Self { raw_node: node })
+    }
+
+    pub fn named_descendant_for_point_range(
+        &self,
+        start: (usize, usize),
+        end: (usize, usize),
+    ) -> Option<Self> {
+        let start = tree_sitter::Point::new(start.0, start.1);
+        let end = tree_sitter::Point::new(end.0, end.1);
+        self.raw_node
+            .descendant_for_point_range(start, end)
+            .map(|node| Self { raw_node: node })
     }
 
     pub fn to_sexp(&self) -> String {
         self.raw_node.to_sexp()
     }
 
+    pub fn utf8_text(&self, source: String) -> String {
+        self.raw_node
+            .utf8_text(source.as_bytes())
+            .unwrap()
+            .to_string()
+    }
+
     pub fn walk(&self) -> TreeCursor {
         TreeCursor {
             raw_cursor: RefCell::new(self.raw_node.walk()),
         }
+    }
+
+    pub fn inspect(&self) -> String {
+        format!("{:?}", self.raw_node)
+    }
+
+    pub fn to_s(&self) -> String {
+        format!("{}", self.raw_node)
     }
 }
