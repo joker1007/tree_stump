@@ -1,5 +1,6 @@
 # TreeHouse
 [![RSpec](https://github.com/joker1007/tree_house/actions/workflows/rspec.yml/badge.svg)](https://github.com/joker1007/tree_house/actions/workflows/rspec.yml)
+
 [tree-sitter](https://github.com/tree-sitter/tree-sitter) binding for Ruby written by Rust.
 
 ## Installation
