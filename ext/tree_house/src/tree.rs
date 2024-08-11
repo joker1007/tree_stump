@@ -1,4 +1,6 @@
-use magnus::{Error, RFile, RTypedData, Ruby, Value};
+use magnus::block::Yield;
+use magnus::value::ReprValue;
+use magnus::{typed_data, Error, RFile, Ruby};
 
 use std::cell::RefCell;
 use std::num::NonZero;
@@ -108,7 +110,7 @@ impl<'cursor> TreeCursor<'cursor> {
 }
 
 #[magnus::wrap(class = "TreeHouse::Node", free_immediately, unsafe_generics)]
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Copy)]
 pub struct Node<'tree> {
     raw_node: tree_sitter::Node<'tree>,
 }
@@ -237,103 +239,120 @@ impl<'tree> Node<'tree> {
         self.raw_node.field_name_for_child(child_index)
     }
 
-    pub fn children<'cursor>(ruby: &Ruby, rb_self: Value) -> Result<Value, Error> {
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let node = typed_data.get::<Self>()?;
-        let mut cursor = node.raw_node.walk();
-        let iter = node.raw_node.children(&mut cursor);
-        for node in iter {
-            let node = Self { raw_node: node };
-            let _: Value = ruby.yield_value(node)?;
+    pub fn children<'cursor>(
+        ruby: &Ruby,
+        rb_self: typed_data::Obj<Self>,
+    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
+        let mut cursor = rb_self.raw_node.walk();
+        let nodes: Vec<Node<'tree>> = rb_self
+            .raw_node
+            .children(&mut cursor)
+            .map(|node| Self { raw_node: node })
+            .collect();
+        if ruby.block_given() {
+            Ok(Yield::Iter(nodes.into_iter()))
+        } else {
+            Ok(Yield::Enumerator(rb_self.enumeratorize("children", ())))
         }
-        Ok(rb_self)
     }
 
     pub fn children_with_cursor<'cursor>(
         ruby: &Ruby,
-        rb_self: Value,
-        cursor: &'cursor TreeCursor<'tree>,
-    ) -> Result<Value, Error> {
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let node = typed_data.get::<Self>()?;
+        rb_self: typed_data::Obj<Self>,
+        cursor: typed_data::Obj<TreeCursor<'tree>>,
+    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
         let mut borrowed = cursor.raw_cursor.borrow_mut();
-        let iter = node.raw_node.children(&mut borrowed);
-        for node in iter {
-            let node = Self { raw_node: node };
-            let _: Value = ruby.yield_value(node)?;
+        let nodes: Vec<Node<'tree>> = rb_self
+            .raw_node
+            .children(&mut borrowed)
+            .map(|node| Self { raw_node: node })
+            .collect();
+        if ruby.block_given() {
+            Ok(Yield::Iter(nodes.into_iter()))
+        } else {
+            Ok(Yield::Enumerator(
+                rb_self.enumeratorize("children_with_cursor", [cursor]),
+            ))
         }
-        Ok(rb_self)
     }
 
     pub fn named_children_with_cursor<'cursor>(
         ruby: &Ruby,
-        rb_self: Value,
-        cursor: &'cursor TreeCursor<'tree>,
-    ) -> Result<Value, Error> {
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let node = typed_data.get::<Self>()?;
+        rb_self: typed_data::Obj<Self>,
+        cursor: typed_data::Obj<TreeCursor<'tree>>,
+    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
         let mut borrowed = cursor.raw_cursor.borrow_mut();
-        let iter = node.raw_node.named_children(&mut borrowed);
-        for node in iter {
-            let node = Self { raw_node: node };
-            let _: Value = ruby.yield_value(node)?;
+        let nodes: Vec<Node<'tree>> = rb_self
+            .raw_node
+            .named_children(&mut borrowed)
+            .map(|node| Self { raw_node: node })
+            .collect();
+        if ruby.block_given() {
+            Ok(Yield::Iter(nodes.into_iter()))
+        } else {
+            Ok(Yield::Enumerator(
+                rb_self.enumeratorize("named_children_with_cursor", [cursor]),
+            ))
         }
-        Ok(rb_self)
     }
 
     pub fn children_by_field_name_with_cursor<'cursor>(
         ruby: &Ruby,
-        rb_self: Value,
+        rb_self: typed_data::Obj<Self>,
         field_name: String,
-        cursor: &'cursor TreeCursor<'tree>,
-    ) -> Result<Value, Error> {
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let node = typed_data.get::<Self>()?;
+        cursor: typed_data::Obj<TreeCursor<'tree>>,
+    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
         let mut borrowed = cursor.raw_cursor.borrow_mut();
-        let iter = node
+        let nodes: Vec<Node<'tree>> = rb_self
             .raw_node
-            .children_by_field_name(&field_name, &mut borrowed);
-        for node in iter {
-            let node = Self { raw_node: node };
-            let _: Value = ruby.yield_value(node)?;
+            .children_by_field_name(&field_name, &mut borrowed)
+            .map(|node| Self { raw_node: node })
+            .collect();
+        if ruby.block_given() {
+            Ok(Yield::Iter(nodes.into_iter()))
+        } else {
+            Ok(Yield::Enumerator(
+                rb_self.enumeratorize("named_children_with_cursor", [cursor]),
+            ))
         }
-        Ok(rb_self)
     }
 
     pub fn children_by_field_id_with_cursor<'cursor>(
         ruby: &Ruby,
-        rb_self: Value,
+        rb_self: typed_data::Obj<Self>,
         field_id: u16,
-        cursor: &'cursor TreeCursor<'tree>,
-    ) -> Result<Value, Error> {
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let node = typed_data.get::<Self>()?;
+        cursor: typed_data::Obj<TreeCursor<'tree>>,
+    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
         let mut borrowed = cursor.raw_cursor.borrow_mut();
         let non_zero_field_id = match NonZero::new(field_id) {
             Some(id) => Ok(id),
             None => Err(build_error("field_id must be non-zero".to_string())),
         }?;
-        let iter = node
+        let nodes: Vec<Node<'tree>> = rb_self
             .raw_node
-            .children_by_field_id(non_zero_field_id, &mut borrowed);
-        for node in iter {
-            let node = Self { raw_node: node };
-            let _: Value = ruby.yield_value(node)?;
+            .children_by_field_id(non_zero_field_id, &mut borrowed)
+            .map(|node| Self { raw_node: node })
+            .collect();
+        if ruby.block_given() {
+            Ok(Yield::Iter(nodes.into_iter()))
+        } else {
+            Ok(Yield::Enumerator(
+                rb_self.enumeratorize("named_children_with_cursor", [cursor]),
+            ))
         }
-        Ok(rb_self)
     }
 
     pub fn parent(&self) -> Option<Self> {
         self.raw_node.parent().map(|node| Self { raw_node: node })
     }
 
-    pub fn child_containing_descendant(&self, descendant: Value) -> Result<Option<Self>, Error> {
-        let descendant_typed_data =
-            RTypedData::from_value(descendant).expect("Expected typed data");
-        let descendant_node = descendant_typed_data.get::<Self>()?;
+    pub fn child_containing_descendant(
+        &self,
+        descendant: typed_data::Obj<Self>,
+    ) -> Result<Option<Self>, Error> {
         Ok(self
             .raw_node
-            .child_containing_descendant(descendant_node.raw_node)
+            .child_containing_descendant(descendant.raw_node)
             .map(|node| Self { raw_node: node }))
     }
 
