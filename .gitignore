@@ -14,3 +14,5 @@ mkmf.log
 target/
 
 Gemfile.lock
+
+tree-sitter-ruby*

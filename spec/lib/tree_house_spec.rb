@@ -2,7 +2,7 @@ require "tempfile"
 
 RSpec.describe TreeHouse do
   before(:all) do
-    TreeHouse.register_lang("ruby", "/home/joker/.local/share/nvim/lazy/nvim-treesitter/parser/ruby.so")
+    TreeHouse.register_lang("ruby", tree_sitter_ruby_path)
   end
 
   it "can register lang" do
