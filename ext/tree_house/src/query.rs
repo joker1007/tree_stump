@@ -1,14 +1,17 @@
 use std::cell::RefCell;
 
 use magnus::{
+    block::Yield,
     symbol::IntoSymbol,
+    typed_data,
     value::{InnerRef, Opaque, ReprValue},
-    Class, Error, RArray, RStruct, RTypedData, Ruby, Value,
+    Class, Error, IntoValue, RArray, RStruct, RTypedData, Ruby, Value,
 };
 
 use crate::{data::Point, tree::Node, util::build_error, QUERY_CAPTURE_CLASS};
 
 #[magnus::wrap(class = "TreeHouse::Query", free_immediately)]
+#[derive(Debug)]
 pub struct Query {
     pub raw_query: RefCell<tree_sitter::Query>,
 }
@@ -75,7 +78,7 @@ impl Query {
     }
 }
 
-#[magnus::wrap(class = "TreeHouse::QueryMatch", free_immediately, unsafe_generics)]
+#[magnus::wrap(class = "TreeHouse::QueryMatch", free_immediately)]
 pub struct QueryMatch {
     pattern_index: usize,
     captures: Opaque<RArray>,
@@ -86,10 +89,8 @@ impl QueryMatch {
         self.pattern_index
     }
 
-    pub fn captures(ruby: &Ruby, rb_self: Value) -> Result<RArray, Error> {
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let query_match = typed_data.get::<Self>()?;
-        Ok(ruby.get_inner(query_match.captures))
+    pub fn captures(ruby: &Ruby, rb_self: typed_data::Obj<Self>) -> Result<RArray, Error> {
+        Ok(ruby.get_inner(rb_self.captures))
     }
 }
 
@@ -117,46 +118,55 @@ impl QueryCursor {
         self.raw_cursor.borrow().did_exceed_match_limit()
     }
 
-    pub fn matches<'query, 'tree>(
+    pub fn matches<'tree>(
         ruby: &Ruby,
-        rb_self: Value,
-        query: &'query Query,
-        node: &Node<'tree>,
+        rb_self: typed_data::Obj<Self>,
+        query: typed_data::Obj<Query>,
+        node: typed_data::Obj<Node<'tree>>,
         source: String,
-    ) -> Result<Value, Error> {
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let query_cursor = typed_data.get::<Self>()?;
-        let mut cursor = query_cursor.raw_cursor.borrow_mut();
-        let query = query.raw_query.borrow();
-        let matches = cursor.matches(&query, node.get_raw_node(), source.as_bytes());
+    ) -> Result<Yield<impl Iterator<Item = QueryMatch>>, Error> {
+        let mut cursor = rb_self.raw_cursor.borrow_mut();
+        let raw_query = query.raw_query.borrow();
+
+        let matches = cursor.matches(&raw_query, node.get_raw_node(), source.as_bytes());
         let struct_class = QUERY_CAPTURE_CLASS.get_inner_ref_with(ruby);
 
-        for m in matches {
-            let r_array = ruby.ary_new();
-            for c in m.captures {
-                let r_struct =
-                    RStruct::from_value(struct_class.new_instance((Node::new(c.node), c.index))?)
-                        .unwrap();
-                r_array.push(r_struct)?;
-            }
-            let match_obj = QueryMatch {
-                pattern_index: m.pattern_index,
-                captures: Opaque::from(r_array),
-            };
-            let _: Value = ruby.yield_value(match_obj)?;
+        let iter = matches
+            .map(|m| {
+                let r_array = ruby.ary_new();
+                for c in m.captures {
+                    let r_struct = RStruct::from_value(
+                        struct_class
+                            .new_instance((Node::new(c.node), c.index))
+                            .expect("Failed to create capture struct"),
+                    );
+                    r_array
+                        .push(r_struct)
+                        .expect("Failed to push capture to array");
+                }
+                QueryMatch {
+                    pattern_index: m.pattern_index,
+                    captures: Opaque::from(r_array),
+                }
+            })
+            .collect::<Vec<_>>()
+            .into_iter();
+        if ruby.block_given() {
+            Ok(Yield::Iter(iter))
+        } else {
+            Ok(Yield::Enumerator(rb_self.enumeratorize(
+                "matches",
+                (query, node, source.into_value()),
+            )))
         }
-
-        Ok(rb_self)
     }
 
     pub fn set_byte_range(
         _ruby: &Ruby,
-        rb_self: Value,
+        rb_self: typed_data::Obj<Self>,
         range: magnus::Range,
-    ) -> Result<Value, Error> {
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let query_cursor = typed_data.get::<Self>()?;
-        let mut cursor = query_cursor.raw_cursor.borrow_mut();
+    ) -> Result<typed_data::Obj<Self>, Error> {
+        let mut cursor = rb_self.raw_cursor.borrow_mut();
         let len = range.funcall("size", ())?;
         let std_range = range.to_range_with_len(len)?;
         cursor.set_byte_range(std_range);
@@ -165,9 +175,9 @@ impl QueryCursor {
 
     pub fn set_point_range(
         _ruby: &Ruby,
-        rb_self: Value,
+        rb_self: typed_data::Obj<Self>,
         range: magnus::Range,
-    ) -> Result<Value, Error> {
+    ) -> Result<typed_data::Obj<Self>, Error> {
         let excl = range.excl();
 
         if excl {
@@ -185,21 +195,17 @@ impl QueryCursor {
 
         let point_range = start.into_raw()..end.into_raw();
 
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let query_cursor = typed_data.get::<Self>()?;
-        let mut cursor = query_cursor.raw_cursor.borrow_mut();
+        let mut cursor = rb_self.raw_cursor.borrow_mut();
         cursor.set_point_range(point_range);
         Ok(rb_self)
     }
 
     pub fn set_max_start_depth(
         _ruby: &Ruby,
-        rb_self: Value,
+        rb_self: typed_data::Obj<Self>,
         depth: Option<u32>,
-    ) -> Result<Value, Error> {
-        let typed_data = RTypedData::from_value(rb_self).expect("Expected typed data");
-        let query_cursor = typed_data.get::<Self>()?;
-        let mut cursor = query_cursor.raw_cursor.borrow_mut();
+    ) -> Result<typed_data::Obj<Self>, Error> {
+        let mut cursor = rb_self.raw_cursor.borrow_mut();
         cursor.set_max_start_depth(depth);
         Ok(rb_self)
     }

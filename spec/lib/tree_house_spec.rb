@@ -436,5 +436,24 @@ RSpec.describe TreeHouse do
       expect(result[0].captures[0].node).to be_a(TreeHouse::Node)
       expect(result[0].captures[0].node.utf8_text(source)).to eq("Hoge")
     end
+
+    it "can match query without block" do
+      query = parser.build_query(query_str)
+      query_cursor = TreeHouse::QueryCursor.new
+      root_node = parser.parse(source).root_node
+      enum = query_cursor.matches(query, root_node, source)
+
+      result = []
+      indexes = []
+      enum.each_with_index do |m, i|
+        expect(m).to be_a(TreeHouse::QueryMatch)
+        result << m
+        indexes << i
+      end
+      expect(result.size).to eq(2)
+      expect(result[0].captures[0].node).to be_a(TreeHouse::Node)
+      expect(result[0].captures[0].node.utf8_text(source)).to eq("Hoge")
+      expect(indexes).to eq([0, 1])
+    end
   end
 end

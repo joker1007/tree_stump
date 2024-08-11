@@ -1,10 +1,14 @@
 use magnus::{
+    gc::register_mark_object,
     value::{InnerValue, Lazy},
     ExceptionClass, Ruby,
 };
 
-static ERROR_CLASS: Lazy<ExceptionClass> =
-    Lazy::new(|ruby| ExceptionClass::from_value(ruby.eval("TreeHouse::Error").unwrap()).unwrap());
+static ERROR_CLASS: Lazy<ExceptionClass> = Lazy::new(|ruby| {
+    let ex = ExceptionClass::from_value(ruby.eval("TreeHouse::Error").unwrap()).unwrap();
+    register_mark_object(ex);
+    ex
+});
 
 pub fn build_error(message: String) -> magnus::Error {
     let ruby = Ruby::get().expect("Not in Ruby thread");
