@@ -46,6 +46,19 @@ RSpec.configure do |config|
   # triggering implicit auto-inclusion in groups with matching metadata.
   config.shared_context_metadata_behavior = :apply_to_host_groups
 
+  module Helpers
+    def project_root
+      File.expand_path('..', __dir__)
+    end
+
+    def tree_sitter_ruby_path
+      File.join(project_root, 'tree-sitter-ruby', 'libtree-sitter-tree_house.so.0.0')
+    end
+  end
+
+  config.extend Helpers
+  config.include Helpers
+
 # The settings below are suggested to provide a good initial experience
 # with RSpec, but feel free to customize to your heart's content.
 =begin
