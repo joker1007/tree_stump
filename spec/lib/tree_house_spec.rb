@@ -50,8 +50,11 @@ RSpec.describe TreeHouse do
   end
 
   describe "TreeHouse::Node" do
+    let(:tree) do
+      parser.parse(source)
+    end
     let(:node) do
-      parser.parse(source).root_node
+      tree.root_node
     end
 
     describe "#kind" do

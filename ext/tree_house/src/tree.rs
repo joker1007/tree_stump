@@ -326,7 +326,7 @@ impl<'tree> Node<'tree> {
         let mut borrowed = cursor.raw_cursor.borrow_mut();
         let non_zero_field_id = match NonZero::new(field_id) {
             Some(id) => Ok(id),
-            None => Err(build_error("field_id must be non-zero".to_string())),
+            None => Err(build_error("field_id must be non-zero")),
         }?;
         let nodes: Vec<Node<'tree>> = rb_self
             .raw_node

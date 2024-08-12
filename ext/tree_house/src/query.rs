@@ -181,7 +181,7 @@ impl QueryCursor {
         let excl = range.excl();
 
         if excl {
-            return Err(build_error("Point range must be inclusive".to_string()));
+            return Err(build_error("Point range must be inclusive"));
         }
 
         let start: Value = range.beg()?;

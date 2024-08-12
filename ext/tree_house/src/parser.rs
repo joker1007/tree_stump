@@ -37,7 +37,7 @@ impl Parser {
 
         match tree {
             Some(tree) => Ok(Tree::from(tree)),
-            None => Err(build_error("Failed to parse".to_string())),
+            None => Err(build_error("Failed to parse")),
         }
     }
 
@@ -60,11 +60,7 @@ impl Parser {
     pub fn build_query(&self, source: String) -> Result<Query, magnus::Error> {
         let lang = self.language();
         lang.map_or_else(
-            || {
-                Err(build_error(
-                    "Failed to get language from parser".to_string(),
-                ))
-            },
+            || Err(build_error("Failed to get language from parser")),
             |lang| Query::new(&lang, source),
         )
     }
