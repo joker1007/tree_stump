@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, sync::Arc};
 
 use magnus::{
     block::Yield,
@@ -137,7 +137,7 @@ impl QueryCursor {
                 for c in m.captures {
                     let r_struct = RStruct::from_value(
                         struct_class
-                            .new_instance((Node::new(c.node), c.index))
+                            .new_instance((Node::new(Arc::clone(&node.raw_tree), c.node), c.index))
                             .expect("Failed to create capture struct"),
                     );
                     r_array

@@ -5,7 +5,7 @@ use crate::LANG_LANGUAGES;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 #[magnus::wrap(class = "TreeHouse::Parser")]
 pub struct Parser {
@@ -36,7 +36,7 @@ impl Parser {
         let tree = self.raw_parser.borrow_mut().parse(source, None);
 
         match tree {
-            Some(tree) => Ok(Tree::from(tree)),
+            Some(tree) => Ok(Tree::from(Arc::new(tree))),
             None => Err(build_error("Failed to parse")),
         }
     }

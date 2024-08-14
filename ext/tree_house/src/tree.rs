@@ -3,8 +3,10 @@ use magnus::value::ReprValue;
 use magnus::{typed_data, Error, RFile, Ruby};
 
 use std::cell::RefCell;
+use std::hash::Hash;
 use std::num::NonZero;
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::data;
 use crate::data::Point;
@@ -13,16 +15,17 @@ use crate::util::build_error;
 
 #[magnus::wrap(class = "TreeHouse::Tree", free_immediately)]
 pub struct Tree {
-    raw_tree: tree_sitter::Tree,
+    raw_tree: Arc<tree_sitter::Tree>,
 }
 
 impl Tree {
-    pub fn from(tree: tree_sitter::Tree) -> Self {
-        Self { raw_tree: tree }
+    pub fn from(raw_tree: Arc<tree_sitter::Tree>) -> Self {
+        Self { raw_tree }
     }
 
     pub fn root_node(&self) -> Node<'_> {
         Node {
+            raw_tree: Arc::clone(&self.raw_tree),
             raw_node: self.raw_tree.root_node(),
         }
     }
@@ -36,6 +39,7 @@ impl Tree {
 
     pub fn walk(&self) -> TreeCursor<'_> {
         TreeCursor {
+            raw_tree: Arc::clone(&self.raw_tree),
             raw_cursor: RefCell::new(self.raw_tree.walk()),
         }
     }
@@ -51,12 +55,14 @@ impl Tree {
 
 #[magnus::wrap(class = "TreeHouse::TreeCursor", free_immediately, unsafe_generics)]
 pub struct TreeCursor<'cursor> {
+    raw_tree: Arc<tree_sitter::Tree>,
     raw_cursor: RefCell<tree_sitter::TreeCursor<'cursor>>,
 }
 
 impl<'cursor> TreeCursor<'cursor> {
     pub fn node(&self) -> Node {
         Node {
+            raw_tree: Arc::clone(&self.raw_tree),
             raw_node: self.raw_cursor.borrow().node(),
         }
     }
@@ -110,14 +116,29 @@ impl<'cursor> TreeCursor<'cursor> {
 }
 
 #[magnus::wrap(class = "TreeHouse::Node", free_immediately, unsafe_generics)]
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Node<'tree> {
-    raw_node: tree_sitter::Node<'tree>,
+    pub raw_tree: Arc<tree_sitter::Tree>,
+    pub raw_node: tree_sitter::Node<'tree>,
+}
+
+impl PartialEq for Node<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_node == other.raw_node
+    }
+}
+
+impl Eq for Node<'_> {}
+
+impl Hash for Node<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.raw_node.hash(state)
+    }
 }
 
 impl<'tree> Node<'tree> {
-    pub fn new(raw_node: tree_sitter::Node<'tree>) -> Self {
-        Self { raw_node }
+    pub fn new(raw_tree: Arc<tree_sitter::Tree>, raw_node: tree_sitter::Node<'tree>) -> Self {
+        Self { raw_tree, raw_node }
     }
 
     pub fn get_raw_node(&self) -> tree_sitter::Node<'tree> {
@@ -204,9 +225,10 @@ impl<'tree> Node<'tree> {
     }
 
     pub fn child(&self, index: usize) -> Option<Self> {
-        self.raw_node
-            .child(index)
-            .map(|node| Self { raw_node: node })
+        self.raw_node.child(index).map(|node| Self {
+            raw_tree: Arc::clone(&self.raw_tree),
+            raw_node: node,
+        })
     }
 
     pub fn child_count(&self) -> usize {
@@ -214,9 +236,10 @@ impl<'tree> Node<'tree> {
     }
 
     pub fn named_child(&self, index: usize) -> Option<Self> {
-        self.raw_node
-            .named_child(index)
-            .map(|node| Self { raw_node: node })
+        self.raw_node.named_child(index).map(|node| Self {
+            raw_tree: Arc::clone(&self.raw_tree),
+            raw_node: node,
+        })
     }
 
     pub fn named_child_count(&self) -> usize {
@@ -226,13 +249,17 @@ impl<'tree> Node<'tree> {
     pub fn child_by_field_name(&self, field_name: String) -> Option<Self> {
         self.raw_node
             .child_by_field_name(field_name)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&self.raw_tree),
+                raw_node: node,
+            })
     }
 
     pub fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
-        self.raw_node
-            .child_by_field_id(field_id)
-            .map(|node| Self { raw_node: node })
+        self.raw_node.child_by_field_id(field_id).map(|node| Self {
+            raw_tree: Arc::clone(&self.raw_tree),
+            raw_node: node,
+        })
     }
 
     pub fn field_name_for_child(&self, child_index: u32) -> Option<&'static str> {
@@ -247,7 +274,10 @@ impl<'tree> Node<'tree> {
         let nodes: Vec<Node<'tree>> = rb_self
             .raw_node
             .children(&mut cursor)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&rb_self.raw_tree),
+                raw_node: node,
+            })
             .collect();
         if ruby.block_given() {
             Ok(Yield::Iter(nodes.into_iter()))
@@ -265,7 +295,10 @@ impl<'tree> Node<'tree> {
         let nodes: Vec<Node<'tree>> = rb_self
             .raw_node
             .children(&mut borrowed)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&rb_self.raw_tree),
+                raw_node: node,
+            })
             .collect();
         if ruby.block_given() {
             Ok(Yield::Iter(nodes.into_iter()))
@@ -285,7 +318,10 @@ impl<'tree> Node<'tree> {
         let nodes: Vec<Node<'tree>> = rb_self
             .raw_node
             .named_children(&mut borrowed)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&rb_self.raw_tree),
+                raw_node: node,
+            })
             .collect();
         if ruby.block_given() {
             Ok(Yield::Iter(nodes.into_iter()))
@@ -306,7 +342,10 @@ impl<'tree> Node<'tree> {
         let nodes: Vec<Node<'tree>> = rb_self
             .raw_node
             .children_by_field_name(&field_name, &mut borrowed)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&rb_self.raw_tree),
+                raw_node: node,
+            })
             .collect();
         if ruby.block_given() {
             Ok(Yield::Iter(nodes.into_iter()))
@@ -331,7 +370,10 @@ impl<'tree> Node<'tree> {
         let nodes: Vec<Node<'tree>> = rb_self
             .raw_node
             .children_by_field_id(non_zero_field_id, &mut borrowed)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&rb_self.raw_tree),
+                raw_node: node,
+            })
             .collect();
         if ruby.block_given() {
             Ok(Yield::Iter(nodes.into_iter()))
@@ -343,7 +385,10 @@ impl<'tree> Node<'tree> {
     }
 
     pub fn parent(&self) -> Option<Self> {
-        self.raw_node.parent().map(|node| Self { raw_node: node })
+        self.raw_node.parent().map(|node| Self {
+            raw_tree: Arc::clone(&self.raw_tree),
+            raw_node: node,
+        })
     }
 
     pub fn child_containing_descendant(
@@ -353,31 +398,38 @@ impl<'tree> Node<'tree> {
         Ok(self
             .raw_node
             .child_containing_descendant(descendant.raw_node)
-            .map(|node| Self { raw_node: node }))
+            .map(|node| Self {
+                raw_tree: Arc::clone(&self.raw_tree),
+                raw_node: node,
+            }))
     }
 
     pub fn next_sibling(&self) -> Option<Self> {
-        self.raw_node
-            .next_sibling()
-            .map(|node| Self { raw_node: node })
+        self.raw_node.next_sibling().map(|node| Self {
+            raw_tree: Arc::clone(&self.raw_tree),
+            raw_node: node,
+        })
     }
 
     pub fn prev_sibling(&self) -> Option<Self> {
-        self.raw_node
-            .prev_sibling()
-            .map(|node| Self { raw_node: node })
+        self.raw_node.prev_sibling().map(|node| Self {
+            raw_tree: Arc::clone(&self.raw_tree),
+            raw_node: node,
+        })
     }
 
     pub fn next_named_sibling(&self) -> Option<Self> {
-        self.raw_node
-            .next_named_sibling()
-            .map(|node| Self { raw_node: node })
+        self.raw_node.next_named_sibling().map(|node| Self {
+            raw_tree: Arc::clone(&self.raw_tree),
+            raw_node: node,
+        })
     }
 
     pub fn prev_named_sibling(&self) -> Option<Self> {
-        self.raw_node
-            .prev_named_sibling()
-            .map(|node| Self { raw_node: node })
+        self.raw_node.prev_named_sibling().map(|node| Self {
+            raw_tree: Arc::clone(&self.raw_tree),
+            raw_node: node,
+        })
     }
 
     pub fn descendant_count(&self) -> usize {
@@ -387,13 +439,19 @@ impl<'tree> Node<'tree> {
     pub fn descendant_for_byte_range(&self, start: usize, end: usize) -> Option<Self> {
         self.raw_node
             .descendant_for_byte_range(start, end)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&self.raw_tree),
+                raw_node: node,
+            })
     }
 
     pub fn named_descendant_for_byte_range(&self, start: usize, end: usize) -> Option<Self> {
         self.raw_node
             .named_descendant_for_byte_range(start, end)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&self.raw_tree),
+                raw_node: node,
+            })
     }
 
     pub fn descendant_for_point_range(
@@ -405,7 +463,10 @@ impl<'tree> Node<'tree> {
         let end = tree_sitter::Point::new(end.0, end.1);
         self.raw_node
             .descendant_for_point_range(start, end)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&self.raw_tree),
+                raw_node: node,
+            })
     }
 
     pub fn named_descendant_for_point_range(
@@ -417,7 +478,10 @@ impl<'tree> Node<'tree> {
         let end = tree_sitter::Point::new(end.0, end.1);
         self.raw_node
             .descendant_for_point_range(start, end)
-            .map(|node| Self { raw_node: node })
+            .map(|node| Self {
+                raw_tree: Arc::clone(&self.raw_tree),
+                raw_node: node,
+            })
     }
 
     pub fn to_sexp(&self) -> String {
@@ -433,6 +497,7 @@ impl<'tree> Node<'tree> {
 
     pub fn walk(&self) -> TreeCursor {
         TreeCursor {
+            raw_tree: Arc::clone(&self.raw_tree),
             raw_cursor: RefCell::new(self.raw_node.walk()),
         }
     }
