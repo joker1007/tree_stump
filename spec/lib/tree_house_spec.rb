@@ -50,11 +50,18 @@ RSpec.describe TreeHouse do
   end
 
   describe "TreeHouse::Node" do
-    let(:tree) do
-      parser.parse(source)
-    end
     let(:node) do
-      tree.root_node
+      parser.parse(source).root_node
+    end
+
+    describe "GC Safe" do
+      it "can be GC safe" do
+        node.child(0).child(0)
+
+        GC.start
+
+        node.child(0).child(0)
+      end
     end
 
     describe "#kind" do
