@@ -124,35 +124,32 @@ impl QueryCursor {
         query: typed_data::Obj<Query>,
         node: typed_data::Obj<Node<'tree>>,
         source: String,
-    ) -> Result<Yield<impl Iterator<Item = QueryMatch>>, Error> {
+    ) -> Result<Yield<impl Iterator<Item = Value>>, Error> {
         let mut cursor = rb_self.raw_cursor.borrow_mut();
         let raw_query = query.raw_query.borrow();
 
         let matches = cursor.matches(&raw_query, node.get_raw_node(), source.as_bytes());
         let struct_class = QUERY_CAPTURE_CLASS.get_inner_ref_with(ruby);
+        let array = ruby.ary_new();
 
-        let iter = matches
-            .map(|m| {
-                let r_array = ruby.ary_new();
-                for c in m.captures {
-                    let r_struct = RStruct::from_value(
-                        struct_class
-                            .new_instance((Node::new(Arc::clone(&node.raw_tree), c.node), c.index))
-                            .expect("Failed to create capture struct"),
-                    );
-                    r_array
-                        .push(r_struct)
-                        .expect("Failed to push capture to array");
-                }
-                QueryMatch {
-                    pattern_index: m.pattern_index,
-                    captures: Opaque::from(r_array),
-                }
-            })
-            .collect::<Vec<_>>()
-            .into_iter();
+        for m in matches {
+            let captures = ruby.ary_new();
+            for c in m.captures {
+                let r_struct = RStruct::from_value(
+                    struct_class
+                        .new_instance((Node::new(Arc::clone(&node.raw_tree), c.node), c.index))?,
+                );
+                captures.push(r_struct)?
+            }
+            let query_match = QueryMatch {
+                pattern_index: m.pattern_index,
+                captures: Opaque::from(captures),
+            };
+            array.push(query_match)?
+        }
+
         if ruby.block_given() {
-            Ok(Yield::Iter(iter))
+            Ok(Yield::Iter(array.into_iter()))
         } else {
             Ok(Yield::Enumerator(rb_self.enumeratorize(
                 "matches",

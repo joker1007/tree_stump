@@ -35,7 +35,7 @@ fn register_lang(lang: String, path: String) -> () {
 
     unsafe {
         let mut libraries = libraries.lock().unwrap();
-        let lib = libraries.entry(lang.to_string()).or_insert_with(|| {
+        let lib = libraries.entry(lang.clone()).or_insert_with(|| {
             let loaded = Library::new(path).expect("Failed to load library");
             loaded
         });

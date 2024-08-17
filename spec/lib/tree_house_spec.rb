@@ -215,6 +215,19 @@ RSpec.describe TreeHouse do
         expect(result[0].kind).to eq("class")
         expect(result[1].kind).to eq("call")
       end
+
+      it "return Enumerator when no block is given" do
+        result = []
+        children = node.children
+        n = nil
+        children.with_index do |child, i|
+          result << child
+          n = i
+        end
+        expect(n).to eq(1)
+        expect(result[0].kind).to eq("class")
+        expect(result[1].kind).to eq("call")
+      end
     end
 
     describe "#children_with_cursor" do

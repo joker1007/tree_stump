@@ -1,6 +1,6 @@
 use magnus::block::Yield;
 use magnus::value::ReprValue;
-use magnus::{typed_data, Error, RFile, Ruby};
+use magnus::{typed_data, Error, RFile, Ruby, Value};
 
 use std::cell::RefCell;
 use std::hash::Hash;
@@ -269,18 +269,21 @@ impl<'tree> Node<'tree> {
     pub fn children<'cursor>(
         ruby: &Ruby,
         rb_self: typed_data::Obj<Self>,
-    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
+    ) -> Result<Yield<impl Iterator<Item = Value>>, Error> {
         let mut cursor = rb_self.raw_node.walk();
-        let nodes: Vec<Node<'tree>> = rb_self
-            .raw_node
-            .children(&mut cursor)
-            .map(|node| Self {
+        let nodes = rb_self.raw_node.children(&mut cursor);
+        let array = ruby.ary_new_capa(nodes.len());
+        for n in nodes {
+            let node = Self {
                 raw_tree: Arc::clone(&rb_self.raw_tree),
-                raw_node: node,
-            })
-            .collect();
+                raw_node: n,
+            };
+            array.push(node)?
+        }
+        array.freeze();
+
         if ruby.block_given() {
-            Ok(Yield::Iter(nodes.into_iter()))
+            Ok(Yield::Iter(array.into_iter()))
         } else {
             Ok(Yield::Enumerator(rb_self.enumeratorize("children", ())))
         }
@@ -290,21 +293,24 @@ impl<'tree> Node<'tree> {
         ruby: &Ruby,
         rb_self: typed_data::Obj<Self>,
         cursor: typed_data::Obj<TreeCursor<'tree>>,
-    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
+    ) -> Result<Yield<impl Iterator<Item = Value>>, Error> {
         let mut borrowed = cursor.raw_cursor.borrow_mut();
-        let nodes: Vec<Node<'tree>> = rb_self
-            .raw_node
-            .children(&mut borrowed)
-            .map(|node| Self {
+        let nodes = rb_self.raw_node.children(&mut borrowed);
+        let array = ruby.ary_new_capa(nodes.len());
+        for n in nodes {
+            let node = Self {
                 raw_tree: Arc::clone(&rb_self.raw_tree),
-                raw_node: node,
-            })
-            .collect();
+                raw_node: n,
+            };
+            array.push(node)?
+        }
+        array.freeze();
+
         if ruby.block_given() {
-            Ok(Yield::Iter(nodes.into_iter()))
+            Ok(Yield::Iter(array.into_iter()))
         } else {
             Ok(Yield::Enumerator(
-                rb_self.enumeratorize("children_with_cursor", [cursor]),
+                rb_self.enumeratorize("children_with_cursor", ()),
             ))
         }
     }
@@ -313,18 +319,21 @@ impl<'tree> Node<'tree> {
         ruby: &Ruby,
         rb_self: typed_data::Obj<Self>,
         cursor: typed_data::Obj<TreeCursor<'tree>>,
-    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
+    ) -> Result<Yield<impl Iterator<Item = Value>>, Error> {
         let mut borrowed = cursor.raw_cursor.borrow_mut();
-        let nodes: Vec<Node<'tree>> = rb_self
-            .raw_node
-            .named_children(&mut borrowed)
-            .map(|node| Self {
+        let nodes = rb_self.raw_node.named_children(&mut borrowed);
+        let array = ruby.ary_new_capa(nodes.len());
+        for n in nodes {
+            let node = Self {
                 raw_tree: Arc::clone(&rb_self.raw_tree),
-                raw_node: node,
-            })
-            .collect();
+                raw_node: n,
+            };
+            array.push(node)?
+        }
+        array.freeze();
+
         if ruby.block_given() {
-            Ok(Yield::Iter(nodes.into_iter()))
+            Ok(Yield::Iter(array.into_iter()))
         } else {
             Ok(Yield::Enumerator(
                 rb_self.enumeratorize("named_children_with_cursor", [cursor]),
@@ -337,18 +346,23 @@ impl<'tree> Node<'tree> {
         rb_self: typed_data::Obj<Self>,
         field_name: String,
         cursor: typed_data::Obj<TreeCursor<'tree>>,
-    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
+    ) -> Result<Yield<impl Iterator<Item = Value>>, Error> {
         let mut borrowed = cursor.raw_cursor.borrow_mut();
-        let nodes: Vec<Node<'tree>> = rb_self
+        let nodes = rb_self
             .raw_node
-            .children_by_field_name(&field_name, &mut borrowed)
-            .map(|node| Self {
+            .children_by_field_name(&field_name, &mut borrowed);
+        let array = ruby.ary_new();
+        for n in nodes {
+            let node = Self {
                 raw_tree: Arc::clone(&rb_self.raw_tree),
-                raw_node: node,
-            })
-            .collect();
+                raw_node: n,
+            };
+            array.push(node)?
+        }
+        array.freeze();
+
         if ruby.block_given() {
-            Ok(Yield::Iter(nodes.into_iter()))
+            Ok(Yield::Iter(array.into_iter()))
         } else {
             Ok(Yield::Enumerator(
                 rb_self.enumeratorize("named_children_with_cursor", [cursor]),
@@ -361,22 +375,27 @@ impl<'tree> Node<'tree> {
         rb_self: typed_data::Obj<Self>,
         field_id: u16,
         cursor: typed_data::Obj<TreeCursor<'tree>>,
-    ) -> Result<Yield<impl Iterator<Item = Node<'tree>>>, Error> {
+    ) -> Result<Yield<impl Iterator<Item = Value>>, Error> {
         let mut borrowed = cursor.raw_cursor.borrow_mut();
         let non_zero_field_id = match NonZero::new(field_id) {
             Some(id) => Ok(id),
             None => Err(build_error("field_id must be non-zero")),
         }?;
-        let nodes: Vec<Node<'tree>> = rb_self
+        let nodes = rb_self
             .raw_node
-            .children_by_field_id(non_zero_field_id, &mut borrowed)
-            .map(|node| Self {
+            .children_by_field_id(non_zero_field_id, &mut borrowed);
+        let array = ruby.ary_new();
+        for n in nodes {
+            let node = Self {
                 raw_tree: Arc::clone(&rb_self.raw_tree),
-                raw_node: node,
-            })
-            .collect();
+                raw_node: n,
+            };
+            array.push(node)?
+        }
+        array.freeze();
+
         if ruby.block_given() {
-            Ok(Yield::Iter(nodes.into_iter()))
+            Ok(Yield::Iter(array.into_iter()))
         } else {
             Ok(Yield::Enumerator(
                 rb_self.enumeratorize("named_children_with_cursor", [cursor]),
