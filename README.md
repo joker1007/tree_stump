@@ -26,8 +26,11 @@ parser.set_language("ruby")
 
 source = File.read("./sample.rb")
 
+formatter = Rouge::Formatters::Terminal256.new
+lexer = Rouge::Lexers::Ruby.new
+
 puts "== Source =="
-puts source
+puts formatter.format(lexer.lex(source))
 
 puts "\n"
 
