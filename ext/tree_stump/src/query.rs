@@ -10,7 +10,7 @@ use magnus::{
 
 use crate::{data::Point, tree::Node, util::build_error, QUERY_CAPTURE_CLASS};
 
-#[magnus::wrap(class = "TreeHouse::Query", free_immediately)]
+#[magnus::wrap(class = "TreeStump::Query", free_immediately)]
 #[derive(Debug)]
 pub struct Query {
     pub raw_query: RefCell<tree_sitter::Query>,
@@ -78,7 +78,7 @@ impl Query {
     }
 }
 
-#[magnus::wrap(class = "TreeHouse::QueryMatch", free_immediately)]
+#[magnus::wrap(class = "TreeStump::QueryMatch", free_immediately)]
 pub struct QueryMatch {
     pattern_index: usize,
     captures: Opaque<RArray>,
@@ -94,7 +94,7 @@ impl QueryMatch {
     }
 }
 
-#[magnus::wrap(class = "TreeHouse::QueryCursor", free_immediately)]
+#[magnus::wrap(class = "TreeStump::QueryCursor", free_immediately)]
 pub struct QueryCursor {
     raw_cursor: RefCell<tree_sitter::QueryCursor>,
 }

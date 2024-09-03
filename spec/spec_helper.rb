@@ -14,7 +14,7 @@
 #
 # See https://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
 
-require "tree_house"
+require "tree_stump"
 RSpec.configure do |config|
   # rspec-expectations config goes here. You can use an alternate
   # assertion/expectation library such as wrong or the stdlib/minitest
@@ -52,7 +52,7 @@ RSpec.configure do |config|
     end
 
     def tree_sitter_ruby_path
-      File.join(project_root, 'tree-sitter-ruby', 'libtree-sitter-tree_house.so.0.0')
+      File.join(project_root, 'tree-sitter-ruby', 'libtree-sitter-ruby.so')
     end
   end
 

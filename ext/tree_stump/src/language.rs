@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-#[magnus::wrap(class = "TreeHouse::LanguageRef", free_immediately, unsafe_generics)]
+#[magnus::wrap(class = "TreeStump::LanguageRef", free_immediately, unsafe_generics)]
 pub struct LanguageRef<'a> {
     pub raw_language_ref: tree_sitter::LanguageRef<'a>,
 }
@@ -58,7 +58,7 @@ impl<'a> LanguageRef<'a> {
     }
 }
 
-#[magnus::wrap(class = "TreeHouse::LookaheadIterator")]
+#[magnus::wrap(class = "TreeStump::LookaheadIterator")]
 pub struct LookaheadIterator {
     raw_iterator: RefCell<tree_sitter::LookaheadIterator>,
 }

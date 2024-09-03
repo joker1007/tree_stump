@@ -58,7 +58,7 @@ fn available_langs() -> Vec<String> {
 
 #[magnus::init]
 fn init(ruby: &Ruby) -> Result<(), Error> {
-    let namespace = ruby.define_module("TreeHouse")?;
+    let namespace = ruby.define_module("TreeStump")?;
     namespace.define_singleton_method("register_lang", function!(register_lang, 2))?;
     namespace.define_singleton_method("available_langs", function!(available_langs, 0))?;
 

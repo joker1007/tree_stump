@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative "tree_house/version"
+require_relative "tree_stump/version"
 
-module TreeHouse
+module TreeStump
   class Error < StandardError;
     def initialize(msg)
       super(msg)
@@ -12,4 +12,4 @@ module TreeHouse
   class QueryError < Error; end
 end
 
-require_relative "tree_house/tree_house"
+require_relative "tree_stump/tree_stump"

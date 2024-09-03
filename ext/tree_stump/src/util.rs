@@ -7,7 +7,7 @@ use magnus::{
 };
 
 static ERROR_CLASS: Lazy<ExceptionClass> = Lazy::new(|ruby| {
-    let ex = ExceptionClass::from_value(ruby.eval("TreeHouse::Error").unwrap()).unwrap();
+    let ex = ExceptionClass::from_value(ruby.eval("TreeStump::Error").unwrap()).unwrap();
     register_mark_object(ex);
     ex
 });

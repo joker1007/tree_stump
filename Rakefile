@@ -8,10 +8,10 @@ RSpec::Core::RakeTask.new(:spec)
 
 task build: :compile
 
-GEMSPEC = Gem::Specification.load("tree_house.gemspec")
+GEMSPEC = Gem::Specification.load("tree_stump.gemspec")
 
-RbSys::ExtensionTask.new("tree_house", GEMSPEC) do |ext|
-  ext.lib_dir = "lib/tree_house"
+RbSys::ExtensionTask.new("tree_stump", GEMSPEC) do |ext|
+  ext.lib_dir = "lib/tree_stump"
 end
 
 task spec: :compile

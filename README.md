@@ -1,5 +1,5 @@
-# TreeHouse
-[![RSpec](https://github.com/joker1007/tree_house/actions/workflows/rspec.yml/badge.svg)](https://github.com/joker1007/tree_house/actions/workflows/rspec.yml)
+# TreeStump
+[![RSpec](https://github.com/joker1007/tree_stump/actions/workflows/rspec.yml/badge.svg)](https://github.com/joker1007/tree_stump/actions/workflows/rspec.yml)
 
 [tree-sitter](https://github.com/tree-sitter/tree-sitter) binding for Ruby written by Rust.
 
@@ -7,21 +7,21 @@
 
 Install the gem and add to the application's Gemfile by executing:
 
-    $ bundle add tree_house
+    $ bundle add tree_stump
 
 If bundler is not being used to manage dependencies, install the gem by executing:
 
-    $ gem install tree_house
+    $ gem install tree_stump
 
 ## Usage
 
 ```ruby
-require "tree_house"
+require "tree_stump"
 require "rouge"
 
-TreeHouse.register_lang("ruby", "./libtree-sitter-ruby.so")
+TreeStump.register_lang("ruby", "./libtree-sitter-ruby.so")
 
-parser = TreeHouse::Parser.new
+parser = TreeStump::Parser.new
 parser.set_language("ruby")
 
 source = File.read("./sample.rb")
@@ -53,9 +53,9 @@ puts tree.root_node.to_sexp
 
 1. Download source of tree-sitter-ruby from [GitHub Repository](https://github.com/tree-sitter/tree-sitter-ruby).
 1. Extract tree-sitter-ruby source
-1. mv tree-sitter-ruby-v{version_num} to tree_house/tree-sitter-ruby
+1. mv tree-sitter-ruby-v{version_num} to tree_stump/tree-sitter-ruby
 1. Execute `make` in tree-sitter-ruby directory
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/joker1007/tree_house.
+Bug reports and pull requests are welcome on GitHub at https://github.com/joker1007/tree_stump.

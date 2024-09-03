@@ -3,4 +3,4 @@
 require "mkmf"
 require "rb_sys/mkmf"
 
-create_rust_makefile("tree_house/tree_house")
+create_rust_makefile("tree_stump/tree_stump")

@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[magnus::wrap(class = "TreeHouse::Point", free_immediately)]
+#[magnus::wrap(class = "TreeStump::Point", free_immediately)]
 pub struct Point {
     pub row: usize,
     pub column: usize,
@@ -44,7 +44,7 @@ impl From<tree_sitter::Point> for Point {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[magnus::wrap(class = "TreeHouse::Range", free_immediately)]
+#[magnus::wrap(class = "TreeStump::Range", free_immediately)]
 pub struct Range {
     pub start_byte: usize,
     pub end_byte: usize,

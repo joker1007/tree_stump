@@ -3,5 +3,5 @@
 # in the ext/ directory.
 
 [workspace]
-members = ["./ext/tree_house"]
+members = ["./ext/tree_stump"]
 resolver = "2"

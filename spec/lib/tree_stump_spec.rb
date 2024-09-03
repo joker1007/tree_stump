@@ -1,16 +1,16 @@
 require "tempfile"
 
-RSpec.describe TreeHouse do
+RSpec.describe TreeStump do
   before(:all) do
-    TreeHouse.register_lang("ruby", tree_sitter_ruby_path)
+    TreeStump.register_lang("ruby", tree_sitter_ruby_path)
   end
 
   it "can register lang" do
-    expect(TreeHouse.available_langs).to include("ruby")
+    expect(TreeStump.available_langs).to include("ruby")
   end
 
   let(:parser) do
-    TreeHouse::Parser.new.tap do |p|
+    TreeStump::Parser.new.tap do |p|
       p.set_language("ruby")
     end
   end
@@ -33,10 +33,10 @@ RSpec.describe TreeHouse do
 
   it "can parse code" do
     tree = parser.parse(source)
-    expect(tree).to be_a(TreeHouse::Tree)
+    expect(tree).to be_a(TreeStump::Tree)
 
     root_node = tree.root_node
-    expect(root_node).to be_a(TreeHouse::Node)
+    expect(root_node).to be_a(TreeStump::Node)
   end
 
   it "can print_dot_graph" do
@@ -49,7 +49,7 @@ RSpec.describe TreeHouse do
     end
   end
 
-  describe "TreeHouse::Node" do
+  describe "TreeStump::Node" do
     let(:node) do
       parser.parse(source).root_node
     end
@@ -140,29 +140,29 @@ RSpec.describe TreeHouse do
 
     describe "#range" do
       it "returns the node's range" do
-        expect(node.range).to eq(TreeHouse::Range.new(0, 123, TreeHouse::Point.new(0, 0),  TreeHouse::Point.new(12, 0)))
+        expect(node.range).to eq(TreeStump::Range.new(0, 123, TreeStump::Point.new(0, 0),  TreeStump::Point.new(12, 0)))
       end
     end
 
     describe "#start_position" do
       it "returns the node's start position" do
-        expect(node.start_position).to eq(TreeHouse::Point.new(0, 0))
+        expect(node.start_position).to eq(TreeStump::Point.new(0, 0))
       end
     end
 
     describe "#end_position" do
       it "returns the node's end position" do
-        expect(node.end_position).to eq(TreeHouse::Point.new(12, 0))
+        expect(node.end_position).to eq(TreeStump::Point.new(12, 0))
       end
     end
 
     describe "#child" do
       it "returns the node's child" do
-        expect(node.child(0)).to be_a(TreeHouse::Node)
+        expect(node.child(0)).to be_a(TreeStump::Node)
         expect(node.child(0).kind).to eq("class")
         expect(node.child(0).child(0).kind).to eq("class") # "class" keyword
 
-        expect(node.child(1)).to be_a(TreeHouse::Node)
+        expect(node.child(1)).to be_a(TreeStump::Node)
         expect(node.child(1).kind).to eq("call")
       end
     end
@@ -176,7 +176,7 @@ RSpec.describe TreeHouse do
 
     describe "#named_child" do
       it "returns the node's named child" do
-        expect(node.named_child(0)).to be_a(TreeHouse::Node)
+        expect(node.named_child(0)).to be_a(TreeStump::Node)
         expect(node.named_child(0).kind).to eq("class")
         expect(node.named_child(0).named_child(0).kind).to eq("constant")
       end
@@ -208,7 +208,7 @@ RSpec.describe TreeHouse do
       it "yields the node's children with cursor" do
         result = []
         node.children do |child|
-          expect(child).to be_a(TreeHouse::Node)
+          expect(child).to be_a(TreeStump::Node)
           result << child
         end
         expect(result.size).to eq(2)
@@ -235,7 +235,7 @@ RSpec.describe TreeHouse do
         cursor = node.walk
         result = []
         node.children_with_cursor(cursor) do |child|
-          expect(child).to be_a(TreeHouse::Node)
+          expect(child).to be_a(TreeStump::Node)
           result << child
         end
         expect(result.size).to eq(2)
@@ -341,15 +341,15 @@ RSpec.describe TreeHouse do
     end
   end
 
-  describe "TreeHouse::Query" do
+  describe "TreeStump::Query" do
     let(:query_str) { "(class (constant) @class_name (body_statement) @body)" }
     it "can build query" do
       query = parser.build_query(query_str)
-      expect(query).to be_a(TreeHouse::Query)
+      expect(query).to be_a(TreeStump::Query)
     end
 
     it "detect wrong query" do
-      expect { parser.build_query("(invalid_node)") }.to raise_error(TreeHouse::Error)
+      expect { parser.build_query("(invalid_node)") }.to raise_error(TreeStump::Error)
     end
 
     it "#start_byte_for_pattern" do
@@ -408,7 +408,7 @@ RSpec.describe TreeHouse do
     end
   end
 
-  describe "TreeHouse::QueryCursor" do
+  describe "TreeStump::QueryCursor" do
     let(:query_str) { "(class (constant) @class_name (body_statement) @body)" }
 
     let(:source) do
@@ -435,12 +435,12 @@ RSpec.describe TreeHouse do
     end
 
     it "#set_match_limit" do
-      query_cursor = TreeHouse::QueryCursor.new
+      query_cursor = TreeStump::QueryCursor.new
       expect { query_cursor.set_match_limit(10) }.not_to raise_error
     end
 
     it "#match_limit" do
-      query_cursor = TreeHouse::QueryCursor.new
+      query_cursor = TreeStump::QueryCursor.new
       expect(query_cursor.match_limit).to eq(2 ** 32 - 1)
       query_cursor.set_match_limit(10)
       expect(query_cursor.match_limit).to eq(10)
@@ -448,33 +448,33 @@ RSpec.describe TreeHouse do
 
     it "can match query" do
       query = parser.build_query(query_str)
-      query_cursor = TreeHouse::QueryCursor.new
+      query_cursor = TreeStump::QueryCursor.new
       root_node = parser.parse(source).root_node
       result = []
       query_cursor.matches(query, root_node, source) do |m|
-        expect(m).to be_a(TreeHouse::QueryMatch)
+        expect(m).to be_a(TreeStump::QueryMatch)
         result << m
       end
       expect(result.size).to eq(2)
-      expect(result[0].captures[0].node).to be_a(TreeHouse::Node)
+      expect(result[0].captures[0].node).to be_a(TreeStump::Node)
       expect(result[0].captures[0].node.utf8_text(source)).to eq("Hoge")
     end
 
     it "can match query without block" do
       query = parser.build_query(query_str)
-      query_cursor = TreeHouse::QueryCursor.new
+      query_cursor = TreeStump::QueryCursor.new
       root_node = parser.parse(source).root_node
       enum = query_cursor.matches(query, root_node, source)
 
       result = []
       indexes = []
       enum.each_with_index do |m, i|
-        expect(m).to be_a(TreeHouse::QueryMatch)
+        expect(m).to be_a(TreeStump::QueryMatch)
         result << m
         indexes << i
       end
       expect(result.size).to eq(2)
-      expect(result[0].captures[0].node).to be_a(TreeHouse::Node)
+      expect(result[0].captures[0].node).to be_a(TreeStump::Node)
       expect(result[0].captures[0].node.utf8_text(source)).to eq("Hoge")
       expect(indexes).to eq([0, 1])
     end

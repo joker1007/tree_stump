@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-#[magnus::wrap(class = "TreeHouse::Parser")]
+#[magnus::wrap(class = "TreeStump::Parser")]
 pub struct Parser {
     raw_parser: RefCell<tree_sitter::Parser>,
 }

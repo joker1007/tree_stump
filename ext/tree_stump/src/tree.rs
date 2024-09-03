@@ -13,7 +13,7 @@ use crate::data::Point;
 use crate::language::LanguageRef;
 use crate::util::build_error;
 
-#[magnus::wrap(class = "TreeHouse::Tree", free_immediately)]
+#[magnus::wrap(class = "TreeStump::Tree", free_immediately)]
 pub struct Tree {
     raw_tree: Arc<tree_sitter::Tree>,
 }
@@ -53,7 +53,7 @@ impl Tree {
     }
 }
 
-#[magnus::wrap(class = "TreeHouse::TreeCursor", free_immediately, unsafe_generics)]
+#[magnus::wrap(class = "TreeStump::TreeCursor", free_immediately, unsafe_generics)]
 pub struct TreeCursor<'cursor> {
     raw_tree: Arc<tree_sitter::Tree>,
     raw_cursor: RefCell<tree_sitter::TreeCursor<'cursor>>,
@@ -115,7 +115,7 @@ impl<'cursor> TreeCursor<'cursor> {
     }
 }
 
-#[magnus::wrap(class = "TreeHouse::Node", free_immediately, unsafe_generics)]
+#[magnus::wrap(class = "TreeStump::Node", free_immediately, unsafe_generics)]
 #[derive(Debug, Clone)]
 pub struct Node<'tree> {
     pub raw_tree: Arc<tree_sitter::Tree>,
