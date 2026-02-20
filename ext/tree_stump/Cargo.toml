@@ -9,8 +9,8 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-magnus = { version = "0.8.2" }
-rb-sys = { version = "0.9.119", features = ["stable-api-compiled-fallback"] }
+magnus = { git = "https://github.com/matsadler/magnus.git", rev = "b77ee863fc4311627658841f09e98f9c0374eeae" }
+rb-sys = { version = "0.9.124", features = ["stable-api-compiled-fallback"] }
 tree-sitter = "0.26"
 tree-sitter-language = "0.1"
 libloading = "~0.8.4"

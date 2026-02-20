@@ -18,11 +18,20 @@ If bundler is not being used to manage dependencies, install the gem by executin
 
 tree_stump is a Rust native extension using [magnus](https://github.com/matsadler/magnus) and [rb-sys](https://github.com/oxidize-rb/rb-sys) for Ruby bindings.
 
-| Platform | Supported | Notes |
-|----------|-----------|-------|
-| **MRI Ruby** | ✅ Yes | Full support (3.1+) |
-| **JRuby** | ❌ No | JRuby runs on the JVM and cannot load native `.so` extensions |
-| **TruffleRuby** | ❌ No | magnus/rb-sys are incompatible with TruffleRuby's C API emulation |
+| Platform        | Supported | Notes                                                             |
+|-----------------|-----------|-------------------------------------------------------------------|
+| **MRI Ruby**    | ✅ Yes     | Full support (3.2+)                                               |
+| **JRuby**       | ❌ No      | JRuby runs on the JVM and cannot load native `.so` extensions     |
+| **TruffleRuby** | ❌ No      | magnus/rb-sys are incompatible with TruffleRuby's C API emulation |
+
+### Minimum Ruby Version
+
+tree_stump's minimum supported Ruby version is determined by [magnus](https://github.com/matsadler/magnus),
+the Rust crate that provides the Ruby C API bindings. When magnus adopts newer Ruby C API functions,
+older Ruby versions that lack those functions can no longer compile the native extension.
+
+As a result, tree_stump's minimum Ruby version will always match whatever magnus requires.
+Check the [magnus documentation](https://github.com/matsadler/magnus) for its current Ruby version support.
 
 <details>
     <summary>Why JRuby doesn't work</summary>

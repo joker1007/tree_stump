@@ -1,4 +1,4 @@
-name: RSpec
+name: RSpec EOL Ruby 3.2
 
 on:
   schedule:
@@ -25,12 +25,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: ['3.3', '3.4', '4.0']
+        ruby-version: ['3.2']
         experimental: [false]
-        include:
-          # ruby-head - experimental, see if coming changes in MRI Ruby will break tree_stump
-          - ruby-version: 'ruby-head'
-            experimental: true
 
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +54,8 @@ jobs:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
           cache-version: 1 # Increment this to invalidate cache if needed
+          rubygems: '4.0.6'
+          bundler: '4.0.6'
 
       - name: Build tree-sitter-ruby grammar
         run: |

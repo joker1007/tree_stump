@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.summary = "Ruby bindings for Tree-sitter written in Rust"
   spec.description = "Ruby bindings for Tree-sitter written in Rust using rb_sys and magnus."
   spec.homepage = "https://github.com/joker1007/tree_stump"
-  spec.required_ruby_version = ">= 3.1.0"
+  spec.required_ruby_version = ">= 3.2.0"
   spec.required_rubygems_version = ">= 3.3.11"
 
   spec.metadata["homepage_uri"] = spec.homepage
@@ -33,7 +33,7 @@ Gem::Specification.new do |spec|
   spec.extensions = ["ext/tree_stump/extconf.rb"]
 
   # Required for building the Rust extension
-  spec.add_dependency "rb_sys", "~> 0.9.119"
+  spec.add_dependency "rb_sys", "~> 0.9", ">= 0.9.124"
 
   # Uncomment to register a new dependency of your gem
   spec.add_development_dependency "rspec"
